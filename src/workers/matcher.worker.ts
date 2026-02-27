@@ -42,8 +42,10 @@ function lookupWord(target: string): number {
 
 // ── Rule evaluation ───────────────────────────────────────────────────────────
 
-function resolveRef(ref: string[], segments: string[]): string {
-  return ref.map(letter => segments[letter.charCodeAt(0) - 65] ?? '').join('')
+function resolveRef(ref: import('../lib/rules').SegmentRef, segments: string[]): string {
+  return ref.map(part =>
+    part.kind === 'segment' ? (segments[part.letter.charCodeAt(0) - 65] ?? '') : part.value
+  ).join('')
 }
 
 function evaluateRule(rule: Rule, segments: string[]): boolean {
@@ -52,9 +54,13 @@ function evaluateRule(rule: Rule, segments: string[]): boolean {
     case 'length_gte': return val.length >= rule.value
     case 'length_lte': return val.length <= rule.value
     case 'length_eq':  return val.length === rule.value
-    case 'is_word':    return lookupWord(val) >= 0
-    case 'literal':    return val === rule.value
-    case 'anagram':    return val.split('').sort().join('') === rule.value
+    case 'is_word':     return lookupWord(val) >= 0
+    case 'literal':     return val === rule.value
+    case 'not_literal': return val !== rule.value
+    case 'length_neq':  return val.length !== rule.value
+    case 'seg_eq':      return val === resolveRef(rule.other, segments)
+    case 'seg_neq':     return val !== resolveRef(rule.other, segments)
+    case 'anagram':     return val.split('').sort().join('') === rule.value
   }
 }
 
