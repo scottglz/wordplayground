@@ -8,12 +8,14 @@ export type FilterStatus = 'idle' | 'running' | 'done'
 interface FilterState {
   status: FilterStatus
   results: MatchResult[]
+  matchCount: number
   processed: number
   total: number
 }
 
 interface WorkerSlot {
   results: MatchResult[]
+  matchCount: number
   processed: number
   total: number
   done: boolean
@@ -25,7 +27,7 @@ function workerCount(): number {
 
 export function useFilterWorker() {
   const [state, setState] = useState<FilterState>({
-    status: 'idle', results: [], processed: 0, total: 0,
+    status: 'idle', results: [], matchCount: 0, processed: 0, total: 0,
   })
 
   const workersRef = useRef<Worker[]>([])
@@ -43,11 +45,11 @@ export function useFilterWorker() {
     const N = workerCount()
     const chunkSize = Math.ceil(words.length / N)
     const slots: WorkerSlot[] = Array.from({ length: N }, (_, i) => ({
-      results: [], processed: 0, total: Math.min(chunkSize, words.length - i * chunkSize), done: false,
+      results: [], matchCount: 0, processed: 0, total: Math.min(chunkSize, words.length - i * chunkSize), done: false,
     }))
     slotsRef.current = slots
 
-    setState({ status: 'running', results: [], processed: 0, total: words.length })
+    setState({ status: 'running', results: [], matchCount: 0, processed: 0, total: words.length })
 
     const workers = Array.from({ length: N }, (_, i) => {
       const worker = new Worker(
@@ -56,19 +58,21 @@ export function useFilterWorker() {
       )
 
       worker.onmessage = (e: MessageEvent) => {
-        const { type, results, processed, total } = e.data
-        slots[i] = { results, processed, total, done: type === 'done' }
+        const { type, results, matchCount, processed, total } = e.data
+        slots[i] = { results, matchCount, processed, total, done: type === 'done' }
 
         // Merge all workers' current top results and re-sort globally
         const merged = slots.flatMap(s => s.results)
         merged.sort((a, b) => b.compositeScore - a.compositeScore)
 
         const totalProcessed = slots.reduce((s, w) => s + w.processed, 0)
+        const totalMatchCount = slots.reduce((s, w) => s + w.matchCount, 0)
         const allDone = slots.every(s => s.done)
 
         setState({
           status: allDone ? 'done' : 'running',
           results: merged.slice(0, 500),
+          matchCount: totalMatchCount,
           processed: totalProcessed,
           total: words.length,
         })

@@ -76,13 +76,10 @@ function findSplit(
   segments: string[], rules: Rule[],
 ): string[] | null {
   if (segIdx === n - 1) {
-    const seg = word.slice(pos)
-    if (seg.length === 0) return null
-    segments[segIdx] = seg
+    segments[segIdx] = word.slice(pos)
     return rules.every(r => evaluateRule(r, segments)) ? [...segments] : null
   }
-  const remaining = n - segIdx - 1
-  for (let len = 1; len <= word.length - pos - remaining; len++) {
+  for (let len = 0; len <= word.length - pos; len++) {
     segments[segIdx] = word.slice(pos, pos + len)
     const result = findSplit(word, pos + len, segIdx + 1, n, segments, rules)
     if (result) return result
@@ -109,20 +106,20 @@ self.onmessage = (e: MessageEvent) => {
   for (let i = 0; i < total; i++) {
     const { word, score } = words[i]
 
-    if (word.length >= n) {
+    {
       const winning = findSplit(word, 0, 0, n, segments, rules)
       if (winning) {
         const { matches, bonus } = collectIsWordMatches(rules, winning)
         allResults.push({ word, score, compositeScore: score + bonus, segments: winning, isWordMatches: matches })
       }
-    }
+}
 
     if ((i + 1) % BATCH_SIZE === 0) {
       const sorted = allResults.slice().sort((a, b) => b.compositeScore - a.compositeScore).slice(0, RESULT_LIMIT)
-      self.postMessage({ type: 'progress', results: sorted, processed: i + 1, total })
+      self.postMessage({ type: 'progress', results: sorted, matchCount: allResults.length, processed: i + 1, total })
     }
   }
 
   allResults.sort((a, b) => b.compositeScore - a.compositeScore)
-  self.postMessage({ type: 'done', results: allResults.slice(0, RESULT_LIMIT), processed: total, total })
+  self.postMessage({ type: 'done', results: allResults.slice(0, RESULT_LIMIT), matchCount: allResults.length, processed: total, total })
 }

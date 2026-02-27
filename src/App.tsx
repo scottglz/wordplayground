@@ -3,18 +3,24 @@ import { useWordList } from './hooks/useWordList'
 import { useFilterWorker } from './hooks/useFilterWorker'
 import { parseRules, validateRefs, isError } from './lib/rules'
 import { buildWordBuffer } from './lib/wordBuffer'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 const SEGMENT_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 const SEGMENT_COLORS = [
-  { pill: 'bg-rose-100 text-rose-700 ring-rose-200',    dot: 'bg-rose-400'    },
-  { pill: 'bg-amber-100 text-amber-700 ring-amber-200', dot: 'bg-amber-400'   },
-  { pill: 'bg-sky-100 text-sky-700 ring-sky-200',       dot: 'bg-sky-400'     },
-  { pill: 'bg-violet-100 text-violet-700 ring-violet-200', dot: 'bg-violet-400' },
-  { pill: 'bg-emerald-100 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-400' },
-  { pill: 'bg-pink-100 text-pink-700 ring-pink-200',    dot: 'bg-pink-400'    },
-  { pill: 'bg-orange-100 text-orange-700 ring-orange-200', dot: 'bg-orange-400' },
-  { pill: 'bg-teal-100 text-teal-700 ring-teal-200',    dot: 'bg-teal-400'    },
+  'bg-rose-100 text-rose-700 ring-rose-200',
+  'bg-amber-100 text-amber-700 ring-amber-200',
+  'bg-sky-100 text-sky-700 ring-sky-200',
+  'bg-violet-100 text-violet-700 ring-violet-200',
+  'bg-emerald-100 text-emerald-700 ring-emerald-200',
+  'bg-pink-100 text-pink-700 ring-pink-200',
+  'bg-orange-100 text-orange-700 ring-orange-200',
+  'bg-teal-100 text-teal-700 ring-teal-200',
 ]
 
 function segColor(i: number) {
@@ -23,7 +29,7 @@ function segColor(i: number) {
 
 function App() {
   const { words, status: wordStatus, error: wordError } = useWordList()
-  const { status, results, processed, total, run, cancel } = useFilterWorker()
+  const { status, results, matchCount, processed, total, run, cancel } = useFilterWorker()
 
   const [segmentCount, setSegmentCount] = useState(3)
   const [rulesText, setRulesText] = useState('')
@@ -80,104 +86,109 @@ function App() {
         </div>
 
         {/* Segment count */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
-          <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
-            Segments
-          </label>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => handleSegmentChange(Math.max(1, segmentCount - 1))}
-                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-lg leading-none transition-colors flex items-center justify-center"
-              >−</button>
-              <span className="w-8 text-center font-bold text-lg tabular-nums">{segmentCount}</span>
-              <button
-                onClick={() => handleSegmentChange(Math.min(26, segmentCount + 1))}
-                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-lg leading-none transition-colors flex items-center justify-center"
-              >+</button>
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Segments
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => handleSegmentChange(Math.max(1, segmentCount - 1))}
+                >−</Button>
+                <span className="w-8 text-center font-bold text-lg tabular-nums">{segmentCount}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => handleSegmentChange(Math.min(26, segmentCount + 1))}
+                >+</Button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {segmentLabels.map((letter, i) => (
+                  <Badge
+                    key={letter}
+                    variant="outline"
+                    className={cn(segColor(i), 'ring-1 font-bold w-8 h-8 text-sm justify-center')}
+                  >
+                    {letter}
+                  </Badge>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {segmentLabels.map((letter, i) => (
-                <span
-                  key={letter}
-                  className={`${segColor(i).pill} ring-1 font-bold text-sm w-8 h-8 rounded-lg flex items-center justify-center`}
-                >
-                  {letter}
-                </span>
-              ))}
-            </div>
-          </div>
-          <p className="text-xs text-slate-400 mt-3 font-mono">
-            word = {segmentLabels.join(' + ')}
-          </p>
-        </div>
+            <p className="text-xs text-muted-foreground font-mono">
+              word = {segmentLabels.join(' + ')}
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Rules */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
-          <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">
-            Rules
-          </label>
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {(['A >= 2', 'B is word', 'C = en', 'A+C is word', 'A anagram(meat)'] as const).map(ex => (
-              <code key={ex} className="bg-slate-50 border border-slate-200 text-slate-500 text-xs px-2 py-0.5 rounded-md">
-                {ex}
-              </code>
-            ))}
-          </div>
-          <textarea
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono bg-slate-50 focus:bg-white focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-100 resize-y min-h-[140px] transition-colors placeholder:text-slate-300"
-            placeholder={'A >= 2\nB >= 3\nB is word\nC = en\nA+C is word'}
-            value={rulesText}
-            onChange={e => handleRulesChange(e.target.value)}
-            spellCheck={false}
-          />
-          {(parseErrors.length > 0 || refErrors.length > 0) && (
-            <ul className="mt-3 space-y-1">
-              {parseErrors.map((e, i) => (
-                <li key={i} className="text-xs text-rose-500 flex gap-1.5">
-                  <span>✗</span>
-                  <span><code className="font-mono">{e.line}</code> — {e.message}</span>
-                </li>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Rules
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {(['A >= 2', 'B is word', 'C = en', 'A+C is word', 'A anagram(meat)'] as const).map(ex => (
+                <code key={ex} className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md border">
+                  {ex}
+                </code>
               ))}
-              {refErrors.map((e, i) => (
-                <li key={i} className="text-xs text-rose-500">✗ {e}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+            </div>
+            <Textarea
+              className="font-mono text-sm min-h-[140px]"
+              placeholder={'A >= 2\nB >= 3\nB is word\nC = en\nA+C is word'}
+              value={rulesText}
+              onChange={e => handleRulesChange(e.target.value)}
+              spellCheck={false}
+            />
+            {(parseErrors.length > 0 || refErrors.length > 0) && (
+              <ul className="space-y-1">
+                {parseErrors.map((e, i) => (
+                  <li key={i} className="text-xs text-destructive flex gap-1.5">
+                    <span>✗</span>
+                    <span><code className="font-mono">{e.line}</code> — {e.message}</span>
+                  </li>
+                ))}
+                {refErrors.map((e, i) => (
+                  <li key={i} className="text-xs text-destructive">✗ {e}</li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Run / Cancel + Progress */}
-        <div className="mb-8">
+        <div className="mb-8 space-y-4">
           <div className="flex items-center gap-3">
-            <button
+            <Button
               onClick={handleRun}
               disabled={!canRun || status === 'running'}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-bold shadow-md shadow-violet-200 hover:shadow-lg hover:shadow-violet-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:scale-100 transition-all"
+              className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
               Run
-            </button>
+            </Button>
             {status === 'running' && (
-              <button
-                onClick={cancel}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-colors"
-              >
+              <Button variant="outline" onClick={cancel}>
                 Cancel
-              </button>
+              </Button>
             )}
           </div>
 
           {status === 'running' && (
-            <div className="mt-4">
-              <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Checking {processed.toLocaleString()} / {total.toLocaleString()} words</span>
                 <span className="font-mono">{progressPct}%</span>
               </div>
-              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-violet-400 to-pink-400 transition-all duration-300"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
+              <Progress value={progressPct} />
             </div>
           )}
         </div>
@@ -186,44 +197,51 @@ function App() {
         {(showResults || (status === 'done' && results.length === 0)) && (
           <div>
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Results</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Results</span>
               <span className="text-sm font-semibold text-slate-600">
                 {status === 'running'
-                  ? <>{results.length.toLocaleString()} found so far…</>
+                  ? <>{matchCount.toLocaleString()} found so far…</>
                   : results.length === 0
                     ? 'No matches found.'
-                    : <>{results.length.toLocaleString()} match{results.length === 1 ? '' : 'es'}{results.length === 500 ? ' (top 500)' : ''}</>
+                    : matchCount > 500
+                      ? <>showing top 500 of {matchCount.toLocaleString()} matches</>
+                      : <>{matchCount.toLocaleString()} match{matchCount === 1 ? '' : 'es'}</>
                 }
               </span>
             </div>
 
             {results.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-50">
-                {results.map(({ word, segments, isWordMatches }) => (
-                  <div key={word} className="flex items-center gap-3 px-5 py-2.5 hover:bg-slate-50 transition-colors">
-                    <span className="font-bold font-mono text-sm text-slate-800 min-w-[8rem]">{word}</span>
-                    <span className="flex gap-1 flex-wrap">
-                      {segments.map((seg, i) => (
-                        <span
-                          key={i}
-                          className={`${segColor(i).pill} ring-1 text-xs font-mono px-2 py-0.5 rounded-md font-semibold`}
-                        >
-                          {seg}
+              <Card>
+                <CardContent className="px-0 py-0">
+                  <div className="divide-y">
+                    {results.map(({ word, segments, isWordMatches }) => (
+                      <div key={word} className="flex items-center gap-3 px-5 py-2.5 hover:bg-muted/50 transition-colors">
+                        <span className="font-bold font-mono text-sm min-w-[8rem]">{word}</span>
+                        <span className="flex gap-1 flex-wrap">
+                          {segments.map((seg, i) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className={cn(segColor(i), 'ring-1 font-mono font-semibold')}
+                            >
+                              {seg || '-'}
+                            </Badge>
+                          ))}
                         </span>
-                      ))}
-                    </span>
-                    {isWordMatches.length > 0 && (
-                      <span className="flex gap-1 flex-wrap ml-auto">
-                        {isWordMatches.map((w, i) => (
-                          <span key={i} className="bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 text-xs font-mono px-2 py-0.5 rounded-full font-semibold">
-                            ✓ {w}
+                        {isWordMatches.length > 0 && (
+                          <span className="flex gap-1 flex-wrap ml-auto">
+                            {isWordMatches.map((w, i) => (
+                              <Badge key={i} variant="outline" className="bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 font-mono">
+                                ✓ {w}
+                              </Badge>
+                            ))}
                           </span>
-                        ))}
-                      </span>
-                    )}
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         )}

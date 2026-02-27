@@ -46,7 +46,7 @@ function collectIsWordMatches(
   return { matches, bonus }
 }
 
-// Backtracking search: try all ways to split `word` into `n` non-empty segments.
+// Backtracking search: try all ways to split `word` into `n` segments (empty allowed).
 // Returns the first winning split, or null.
 function findSplit(
   word: string,
@@ -58,14 +58,11 @@ function findSplit(
   wordMap: WordMap,
 ): string[] | null {
   if (segIdx === n - 1) {
-    const seg = word.slice(pos)
-    if (seg.length === 0) return null
-    segments[segIdx] = seg
+    segments[segIdx] = word.slice(pos)
     return rules.every(r => evaluateRule(r, segments, wordMap)) ? [...segments] : null
   }
 
-  const remaining = n - segIdx - 1
-  for (let len = 1; len <= word.length - pos - remaining; len++) {
+  for (let len = 0; len <= word.length - pos; len++) {
     segments[segIdx] = word.slice(pos, pos + len)
     const result = findSplit(word, pos + len, segIdx + 1, n, segments, rules, wordMap)
     if (result) return result
@@ -84,7 +81,6 @@ export function filterWords(
   const segments = new Array<string>(n)
 
   for (const { word, score } of words) {
-    if (word.length < n) continue
     const winning = findSplit(word, 0, 0, n, segments, rules, wordMap)
     if (winning) {
       const { matches, bonus } = collectIsWordMatches(rules, winning, wordMap)
