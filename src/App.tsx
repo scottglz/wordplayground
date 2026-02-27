@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useWordList } from './hooks/useWordList'
 import { useFilterWorker } from './hooks/useFilterWorker'
 import { parseRules, validateRefs, isError } from './lib/rules'
-import type { WordMap } from './lib/matcher'
+import { buildWordBuffer } from './lib/wordBuffer'
 
 const SEGMENT_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -28,8 +28,8 @@ function App() {
   const [segmentCount, setSegmentCount] = useState(3)
   const [rulesText, setRulesText] = useState('')
 
-  const wordMap = useMemo<WordMap>(
-    () => new Map(words.map(w => [w.word, w.score])),
+  const wordBuffer = useMemo(
+    () => words.length > 0 ? buildWordBuffer(words) : null,
     [words],
   )
 
@@ -41,12 +41,13 @@ function App() {
     [validRules, segmentCount],
   )
   const hasErrors = parseErrors.length > 0 || refErrors.length > 0
-  const canRun = wordStatus === 'ready' && validRules.length > 0 && !hasErrors
+  const canRun = wordStatus === 'ready' && validRules.length > 0 && !hasErrors && wordBuffer !== null
 
   const segmentLabels = SEGMENT_LABELS.slice(0, segmentCount).split('')
 
   function handleRun() {
-    run(words, segmentCount, validRules, wordMap)
+    if (!wordBuffer) return
+    run(words, segmentCount, validRules, wordBuffer)
   }
 
   function handleRulesChange(val: string) {
