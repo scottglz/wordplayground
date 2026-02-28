@@ -15,7 +15,7 @@ app.use((_req, res, next) => {
 
 app.use(express.static(dist))
 
-app.get('*', (_req, res) => {
+app.get(/.*/, (_req, res) => {
   res.sendFile(join(dist, 'index.html'))
 })
 
