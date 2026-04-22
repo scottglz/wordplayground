@@ -28,6 +28,13 @@ A UI-centric word/phrase filtering tool. Users apply complex filters against a l
   - `A = en`  — segment equals literal string (case-insensitive input)
   - `A is word` — segment exists in the word list
   - `A+C is word` — concatenation of segments exists in the word list
+  - `reverse(A) is word` — reverse of segment A exists in word list
+  - `A = reverse(C)` — segment A equals segment C reversed
+  - `reverse(C)+reverse(A) is word` — concat of reversed segments exists in word list
+  - `length(A) = length(C)` — segment lengths equal (works with =, !=, >=, <=)
+  - `length(A) = 3` — equivalent to `A = 3`
+  - `length(A+B) >= length(C)` — composite refs work inside length()
+- `reverse()` can wrap any ref part; `length()` wraps an entire LHS ref
 - Results show: score | word | segment breakdown (e.g. `50  garden  gar·den`)
 - Results capped at 500; Run button triggers filter
 

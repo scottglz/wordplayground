@@ -136,7 +136,7 @@ function App() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
-              {(['A >= 2', 'B is word', 'C = en', 'A+C is word', 'A anagram(meat)'] as const).map(ex => (
+              {(['A >= 2', 'B is word', 'C = en', 'reverse(A) is word', 'length(A)=length(C)'] as const).map(ex => (
                 <code key={ex} className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md border">
                   {ex}
                 </code>
@@ -144,7 +144,6 @@ function App() {
             </div>
             <Textarea
               className="font-mono text-sm min-h-[140px]"
-              placeholder={'A >= 2\nB >= 3\nB is word\nC = en\nA+C is word'}
               value={rulesText}
               onChange={e => handleRulesChange(e.target.value)}
               spellCheck={false}
