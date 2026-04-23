@@ -52,6 +52,15 @@ function splitByPlus(s: string): string[] {
   return parts.filter(Boolean)
 }
 
+/** True if ref contains at least one segment part (recursing through reverse()). */
+function refHasSegment(ref: SegmentRef): boolean {
+  return ref.some(p =>
+    p.kind === 'segment' ? true :
+    p.kind === 'reverse' ? refHasSegment(p.inner) :
+    false
+  )
+}
+
 function parseRef(refStr: string): SegmentRef | null {
   const parts = splitByPlus(refStr)
   if (parts.length === 0) return null
@@ -86,6 +95,7 @@ export function parseRules(text: string): ParsedRule[] {
     if (lengthLhsMatch) {
       const ref = parseRef(lengthLhsMatch[1])
       if (!ref) return { type: 'error' as const, line, message: `Invalid ref inside length()` }
+      if (!refHasSegment(ref)) return { type: 'error' as const, line, message: `Ref must reference at least one segment (uppercase A–Z)` }
       const cond = lengthLhsMatch[2].trim()
 
       // length(A) >= length(B)  or  length(A) >= 3
@@ -138,6 +148,7 @@ export function parseRules(text: string): ParsedRule[] {
 
     const ref = parseRef(refStr)
     if (!ref) return { type: 'error' as const, line, message: `Invalid ref "${refStr}"` }
+    if (!refHasSegment(ref)) return { type: 'error' as const, line, message: `Ref must reference at least one segment (uppercase A–Z)` }
 
     const gteMatch = condition.match(/^>=\s*(\d+)$/)
     if (gteMatch) return { type: 'length_gte', ref, value: parseInt(gteMatch[1], 10) }
