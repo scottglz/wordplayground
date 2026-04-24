@@ -172,7 +172,7 @@ function App() {
                 { label: 'length(',  text: 'length('  },
                 { label: 'anagram(', text: 'anagram(' },
                 { label: '↵',        text: '\n' },
-              ] as const).map(({ label, text, spaceBefore }) => (
+              ] as { label: string; text: string; spaceBefore?: boolean }[]).map(({ label, text, spaceBefore }) => (
                 <button
                   key={label}
                   onPointerDown={e => { e.preventDefault(); insertAtCursor(text, spaceBefore) }}
