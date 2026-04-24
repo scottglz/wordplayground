@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useWordList } from './hooks/useWordList'
 import { useFilterWorker } from './hooks/useFilterWorker'
 import { parseRules, validateRefs, isError, type Rule } from './lib/rules'
@@ -56,6 +56,21 @@ function App() {
   function handleRun() {
     if (!wordBuffer) return
     run(words, segmentCount, [...segLengthsToRules(segmentLengths, segmentCount), ...validRules], wordBuffer)
+  }
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  function insertAtCursor(text: string, spaceBefore = false) {
+    const ta = textareaRef.current
+    const start = ta?.selectionStart ?? rulesText.length
+    const end   = ta?.selectionEnd   ?? rulesText.length
+    const before = rulesText.slice(0, start)
+    const after  = rulesText.slice(end)
+    const insert = (spaceBefore && before.length > 0 && !/\s$/.test(before))
+      ? ' ' + text : text
+    setRulesText(before + insert + after)
+    const pos = start + insert.length
+    requestAnimationFrame(() => { ta?.focus(); ta?.setSelectionRange(pos, pos) })
   }
 
   function handleRulesChange(val: string) {
@@ -136,13 +151,37 @@ function App() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
-              {(['A >= 2', 'B is word', 'C = en', 'reverse(A) is word', 'length(A)=length(C)'] as const).map(ex => (
-                <code key={ex} className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md border">
-                  {ex}
-                </code>
+              {SEGMENT_LABELS.slice(0, segmentCount).split('').map((letter, i) => {
+                const col = segColor(i)
+                return (
+                  <button
+                    key={letter}
+                    onPointerDown={e => { e.preventDefault(); insertAtCursor(letter) }}
+                    className={cn('text-xs font-bold px-2.5 py-1 rounded-md border-2 cursor-pointer transition-all active:scale-95', col.bg, col.text, col.border)}
+                  >{letter}</button>
+                )
+              })}
+              {([
+                { label: '+',        text: '+' },
+                { label: 'is word',  text: 'is word',  spaceBefore: true },
+                { label: '=',        text: '= ',       spaceBefore: true },
+                { label: '!=',       text: '!= ',      spaceBefore: true },
+                { label: '>=',       text: '>= ',      spaceBefore: true },
+                { label: '<=',       text: '<= ',      spaceBefore: true },
+                { label: 'reverse(', text: 'reverse(' },
+                { label: 'length(',  text: 'length('  },
+                { label: 'anagram(', text: 'anagram(' },
+                { label: '↵',        text: '\n' },
+              ] as const).map(({ label, text, spaceBefore }) => (
+                <button
+                  key={label}
+                  onPointerDown={e => { e.preventDefault(); insertAtCursor(text, spaceBefore) }}
+                  className="text-xs font-medium px-2.5 py-1 rounded-md border bg-white text-slate-600 border-slate-200 cursor-pointer transition-all active:scale-95 hover:bg-slate-50 font-mono"
+                >{label}</button>
               ))}
             </div>
             <Textarea
+              ref={textareaRef}
               className="font-mono text-sm min-h-[140px]"
               value={rulesText}
               onChange={e => handleRulesChange(e.target.value)}
