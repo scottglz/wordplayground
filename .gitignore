@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Rescore script progress and intermediate files
+scripts/rescore_progress.json
+scripts/chunks/
+public/wordlist_rescored.txt
+public/wordlist.txt.bak
+
 # Claude Code tool config
 .claude/
 
