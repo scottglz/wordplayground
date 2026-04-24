@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useWordList } from './hooks/useWordList'
 import { useFilterWorker } from './hooks/useFilterWorker'
-import { parseRules, validateRefs, isError } from './lib/rules'
+import { parseRules, validateRefs, isError, type Rule } from './lib/rules'
 import { buildWordBuffer } from './lib/wordBuffer'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,22 +9,23 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { SegmentLengthControl, type SegLen, segColor } from '@/components/SegmentLengthControl'
 
 const SEGMENT_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
-const SEGMENT_COLORS = [
-  'bg-rose-100 text-rose-700 ring-rose-200',
-  'bg-amber-100 text-amber-700 ring-amber-200',
-  'bg-sky-100 text-sky-700 ring-sky-200',
-  'bg-violet-100 text-violet-700 ring-violet-200',
-  'bg-emerald-100 text-emerald-700 ring-emerald-200',
-  'bg-pink-100 text-pink-700 ring-pink-200',
-  'bg-orange-100 text-orange-700 ring-orange-200',
-  'bg-teal-100 text-teal-700 ring-teal-200',
-]
-
-function segColor(i: number) {
-  return SEGMENT_COLORS[i % SEGMENT_COLORS.length]
+function segLengthsToRules(lengths: SegLen[], n: number): Rule[] {
+  const rules: Rule[] = []
+  for (let i = 0; i < n; i++) {
+    const { min, max } = lengths[i]
+    const ref = [{ kind: 'segment' as const, letter: SEGMENT_LABELS[i] }]
+    if (max !== null && min === max) {
+      rules.push({ type: 'length_eq', ref, value: min })
+    } else {
+      if (min > 0) rules.push({ type: 'length_gte', ref, value: min })
+      if (max !== null) rules.push({ type: 'length_lte', ref, value: max })
+    }
+  }
+  return rules
 }
 
 function App() {
@@ -32,6 +33,9 @@ function App() {
   const { status, results, matchCount, processed, total, run, cancel } = useFilterWorker()
 
   const [segmentCount, setSegmentCount] = useState(3)
+  const [segmentLengths, setSegmentLengths] = useState<SegLen[]>(
+    Array.from({ length: 3 }, () => ({ min: 1, max: null })),
+  )
   const [rulesText, setRulesText] = useState('')
 
   const wordBuffer = useMemo(
@@ -49,11 +53,9 @@ function App() {
   const hasErrors = parseErrors.length > 0 || refErrors.length > 0
   const canRun = wordStatus === 'ready' && validRules.length > 0 && !hasErrors && wordBuffer !== null
 
-  const segmentLabels = SEGMENT_LABELS.slice(0, segmentCount).split('')
-
   function handleRun() {
     if (!wordBuffer) return
-    run(words, segmentCount, validRules, wordBuffer)
+    run(words, segmentCount, [...segLengthsToRules(segmentLengths, segmentCount), ...validRules], wordBuffer)
   }
 
   function handleRulesChange(val: string) {
@@ -62,6 +64,10 @@ function App() {
   }
 
   function handleSegmentChange(val: number) {
+    setSegmentLengths(prev => {
+      if (val > prev.length) return [...prev, ...Array.from({ length: val - prev.length }, () => ({ min: 1, max: null }))]
+      return prev.slice(0, val)
+    })
     setSegmentCount(val)
     if (status === 'running') cancel()
   }
@@ -93,8 +99,8 @@ function App() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <Button
                   variant="outline"
                   size="icon"
@@ -109,20 +115,14 @@ function App() {
                   onClick={() => handleSegmentChange(Math.min(26, segmentCount + 1))}
                 >+</Button>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {segmentLabels.map((letter, i) => (
-                  <Badge
-                    key={letter}
-                    variant="outline"
-                    className={cn(segColor(i), 'ring-1 font-bold w-8 h-8 text-sm justify-center')}
-                  >
-                    {letter}
-                  </Badge>
-                ))}
-              </div>
+              <SegmentLengthControl
+                segmentCount={segmentCount}
+                lengths={segmentLengths}
+                onChange={setSegmentLengths}
+              />
             </div>
             <p className="text-xs text-muted-foreground font-mono">
-              word = {segmentLabels.join(' + ')}
+              word = {SEGMENT_LABELS.slice(0, segmentCount).split('').join(' + ')}
             </p>
           </CardContent>
         </Card>
@@ -217,15 +217,18 @@ function App() {
                       <div key={word} className="flex items-center gap-3 px-5 py-2.5 hover:bg-muted/50 transition-colors">
                         <span className="font-bold font-mono text-sm min-w-[8rem]">{word}</span>
                         <span className="flex gap-1 flex-wrap">
-                          {segments.map((seg, i) => (
-                            <Badge
-                              key={i}
-                              variant="outline"
-                              className={cn(segColor(i), 'ring-1 font-mono font-semibold')}
-                            >
-                              {seg || '-'}
-                            </Badge>
-                          ))}
+                          {segments.map((seg, i) => {
+                            const col = segColor(i)
+                            return (
+                              <Badge
+                                key={i}
+                                variant="outline"
+                                className={cn(col.bg, col.text, 'ring-1', col.ring, 'font-mono font-semibold')}
+                              >
+                                {seg || '-'}
+                              </Badge>
+                            )
+                          })}
                         </span>
                         {isWordMatches.length > 0 && (
                           <span className="flex gap-1 flex-wrap ml-auto">
