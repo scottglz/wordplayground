@@ -113,8 +113,6 @@ function useSegmentState() {
   }
 }
 
-type State = ReturnType<typeof useSegmentState>
-
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
 function ChipRow({ lengths, selected, onToggle }: { lengths: SegLen[]; selected: Set<number>; onToggle: (i: number) => void }) {
