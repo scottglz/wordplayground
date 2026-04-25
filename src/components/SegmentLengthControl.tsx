@@ -251,14 +251,14 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
           {mode === 'exact' && (
             <>
               <div className={cn('border-t', c.border)} />
-              <PickerRow numSelected={exactCurrent} onPick={n => applyLen(n, n)} />
+              <PickerRow compact numSelected={exactCurrent} onPick={n => applyLen(n, n)} />
             </>
           )}
 
           {mode === 'gte' && (
             <>
               <div className={cn('border-t', c.border)} />
-              <PickerRow numSelected={gteCurrent} onPick={n => applyLen(n, null)} />
+              <PickerRow compact numSelected={gteCurrent} onPick={n => applyLen(n, null)} />
             </>
           )}
 
