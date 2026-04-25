@@ -43,8 +43,8 @@ function fmtRange(s: SegLen): string {
   return `${s.min}-${s.max}`
 }
 
-function PresetChip({ label, active, color, onClick }: {
-  label: string; active: boolean; color: Color; onClick: () => void
+function PresetChip({ label, active, onClick }: {
+  label: string; active: boolean; onClick: () => void
 }) {
   return (
     <button
@@ -57,7 +57,7 @@ function PresetChip({ label, active, color, onClick }: {
   )
 }
 
-function PickerRow({ numSelected, infSelected, includeInf, toLabel, compact, onPick, onPickInf, color }: {
+function PickerRow({ numSelected, infSelected, includeInf, toLabel, compact, onPick, onPickInf }: {
   numSelected: number | null
   infSelected?: boolean
   includeInf?: boolean
@@ -65,7 +65,6 @@ function PickerRow({ numSelected, infSelected, includeInf, toLabel, compact, onP
   compact?: boolean
   onPick: (n: number) => void
   onPickInf?: () => void
-  color: Color
 }) {
   const btnW = compact ? 'min-w-[26px]' : 'min-w-[30px]'
   return (
@@ -241,34 +240,33 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
                 key={p.label}
                 label={p.label}
                 active={mode === 'named' && isPresetActive(p)}
-                color={c}
-                onClick={() => { applyLen(p.min, p.max); setMode('named') }}
+                               onClick={() => { applyLen(p.min, p.max); setMode('named') }}
               />
             ))}
-            <PresetChip label="n"   active={mode === 'exact'} color={c} onClick={() => setMode('exact')} />
-            <PresetChip label="n+"  active={mode === 'gte'}   color={c} onClick={() => setMode('gte')} />
-            <PresetChip label="n-m" active={mode === 'range'} color={c} onClick={() => setMode('range')} />
+            <PresetChip label="n"   active={mode === 'exact'} onClick={() => setMode('exact')} />
+            <PresetChip label="n+"  active={mode === 'gte'}   onClick={() => setMode('gte')} />
+            <PresetChip label="n-m" active={mode === 'range'} onClick={() => setMode('range')} />
           </div>
 
           {mode === 'exact' && (
             <>
               <div className={cn('border-t', c.border)} />
-              <PickerRow numSelected={exactCurrent} onPick={n => applyLen(n, n)} color={c} />
+              <PickerRow numSelected={exactCurrent} onPick={n => applyLen(n, n)} />
             </>
           )}
 
           {mode === 'gte' && (
             <>
               <div className={cn('border-t', c.border)} />
-              <PickerRow numSelected={gteCurrent} onPick={n => applyLen(n, null)} color={c} />
+              <PickerRow numSelected={gteCurrent} onPick={n => applyLen(n, null)} />
             </>
           )}
 
           {mode === 'range' && (
             <>
               <div className={cn('border-t', c.border)} />
-              <PickerRow compact numSelected={rangeMinSelected} onPick={n => applyMin(n)} color={c} />
-              <PickerRow compact toLabel numSelected={rangeMaxNumSelected} infSelected={rangeMaxInfSelected} includeInf onPick={v => applyMax(v)} onPickInf={() => applyMax(null)} color={c} />
+              <PickerRow compact numSelected={rangeMinSelected} onPick={n => applyMin(n)} />
+              <PickerRow compact toLabel numSelected={rangeMaxNumSelected} infSelected={rangeMaxInfSelected} includeInf onPick={v => applyMax(v)} onPickInf={() => applyMax(null)} />
             </>
           )}
         </div>
