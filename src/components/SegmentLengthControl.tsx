@@ -6,28 +6,28 @@ export interface SegLen {
   max: number | null  // null = no limit (∞)
 }
 
-type Color = { bg: string; text: string; ring: string; border: string; dimText: string }
-type Mode = 'named' | 'exact' | 'range'
+type Color = { bg: string; text: string; ring: string; ringSelected: string; border: string; dimText: string }
+type Mode = 'named' | 'exact' | 'gte' | 'range'
 
 const PRESETS: { label: string; min: number; max: number | null }[] = [
-  { label: '1 letter',   min: 1, max: 1    },
-  { label: '1+ letters', min: 1, max: null },
-  { label: '0+ letters', min: 0, max: null },
+  { label: '1 letter', min: 1, max: 1    },
+  { label: '0+',       min: 0, max: null },
+  { label: '1+',       min: 1, max: null },
 ]
 
 export const SEG_COLORS: Color[] = [
-  { bg: 'bg-rose-100',    text: 'text-rose-700',    ring: 'ring-rose-200',    border: 'border-rose-200',    dimText: 'text-rose-400'    },
-  { bg: 'bg-amber-100',   text: 'text-amber-700',   ring: 'ring-amber-200',   border: 'border-amber-200',   dimText: 'text-amber-400'   },
-  { bg: 'bg-sky-100',     text: 'text-sky-700',     ring: 'ring-sky-200',     border: 'border-sky-200',     dimText: 'text-sky-400'     },
-  { bg: 'bg-violet-100',  text: 'text-violet-700',  ring: 'ring-violet-200',  border: 'border-violet-200',  dimText: 'text-violet-400'  },
-  { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200', border: 'border-emerald-200', dimText: 'text-emerald-400' },
-  { bg: 'bg-pink-100',    text: 'text-pink-700',    ring: 'ring-pink-200',    border: 'border-pink-200',    dimText: 'text-pink-400'    },
-  { bg: 'bg-orange-100',  text: 'text-orange-700',  ring: 'ring-orange-200',  border: 'border-orange-200',  dimText: 'text-orange-400'  },
-  { bg: 'bg-teal-100',    text: 'text-teal-700',    ring: 'ring-teal-200',    border: 'border-teal-200',    dimText: 'text-teal-400'    },
+  { bg: 'bg-rose-100',    text: 'text-rose-700',    ring: 'ring-rose-200',    ringSelected: 'ring-rose-500',    border: 'border-rose-200',    dimText: 'text-rose-400'    },
+  { bg: 'bg-amber-100',   text: 'text-amber-700',   ring: 'ring-amber-200',   ringSelected: 'ring-amber-500',   border: 'border-amber-200',   dimText: 'text-amber-400'   },
+  { bg: 'bg-sky-100',     text: 'text-sky-700',     ring: 'ring-sky-200',     ringSelected: 'ring-sky-500',     border: 'border-sky-200',     dimText: 'text-sky-400'     },
+  { bg: 'bg-violet-100',  text: 'text-violet-700',  ring: 'ring-violet-200',  ringSelected: 'ring-violet-500',  border: 'border-violet-200',  dimText: 'text-violet-400'  },
+  { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200', ringSelected: 'ring-emerald-500', border: 'border-emerald-200', dimText: 'text-emerald-400' },
+  { bg: 'bg-pink-100',    text: 'text-pink-700',    ring: 'ring-pink-200',    ringSelected: 'ring-pink-500',    border: 'border-pink-200',    dimText: 'text-pink-400'    },
+  { bg: 'bg-orange-100',  text: 'text-orange-700',  ring: 'ring-orange-200',  ringSelected: 'ring-orange-500',  border: 'border-orange-200',  dimText: 'text-orange-400'  },
+  { bg: 'bg-teal-100',    text: 'text-teal-700',    ring: 'ring-teal-200',    ringSelected: 'ring-teal-500',    border: 'border-teal-200',    dimText: 'text-teal-400'    },
 ]
 
 const NEUTRAL: Color = {
-  bg: 'bg-slate-50', text: 'text-slate-700', ring: 'ring-slate-300',
+  bg: 'bg-slate-50', text: 'text-slate-700', ring: 'ring-slate-300', ringSelected: 'ring-slate-500',
   border: 'border-slate-300', dimText: 'text-slate-400',
 }
 
@@ -40,7 +40,7 @@ const SEGMENT_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 function fmtRange(s: SegLen): string {
   if (s.max === null) return `${s.min}+`
   if (s.min === s.max) return String(s.min)
-  return `${s.min}–${s.max}`
+  return `${s.min}-${s.max}`
 }
 
 function PresetChip({ label, active, color, onClick }: {
@@ -48,54 +48,60 @@ function PresetChip({ label, active, color, onClick }: {
 }) {
   return (
     <button
-      onClick={onClick}
+      onPointerDown={e => { e.preventDefault(); onClick() }}
       className={cn(
-        'h-9 px-3 rounded-full text-xs font-bold border-2 transition-all active:scale-95 whitespace-nowrap',
-        active ? [color.bg, color.text, color.border] : 'bg-white text-slate-500 border-slate-200',
+        'h-9 px-3 rounded-full text-xs font-bold border-2 transition-all active:brightness-90 whitespace-nowrap',
+        active ? 'bg-slate-200 text-slate-700 border-slate-400' : 'bg-white text-slate-500 border-slate-200',
       )}
     >{label}</button>
   )
 }
 
-function PickerRow({ label, numSelected, infSelected, includeInf, onPick, onPickInf, color }: {
-  label: string
+function PickerRow({ numSelected, infSelected, includeInf, toLabel, compact, onPick, onPickInf, color }: {
   numSelected: number | null
   infSelected?: boolean
   includeInf?: boolean
+  toLabel?: boolean
+  compact?: boolean
   onPick: (n: number) => void
   onPickInf?: () => void
   color: Color
 }) {
+  const btnW = compact ? 'min-w-[26px]' : 'min-w-[30px]'
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 w-7 flex-shrink-0">
-        {label}
-      </span>
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5 flex-1 -mr-1 pr-1">
-        {Array.from({ length: 11 }, (_, n) => (
+    <div className="flex gap-1 overflow-x-auto pb-0.5 -mr-1 pr-1">
+      {toLabel && (
+        <span className={cn('h-8 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-slate-400', btnW)}>
+          to
+        </span>
+      )}
+      {Array.from({ length: toLabel ? 10 : 11 }, (_, i) => {
+        const n = toLabel ? i + 1 : i
+        return (
           <button
             key={n}
-            onClick={() => onPick(n)}
+            onPointerDown={e => { e.preventDefault(); onPick(n) }}
             className={cn(
-              'h-10 min-w-[36px] rounded-lg text-sm font-bold flex-shrink-0 border-2 transition-all active:scale-95',
+              'h-8 rounded-md text-xs font-bold flex-shrink-0 border-2 transition-all active:brightness-90',
+              btnW,
               numSelected === n
-                ? [color.bg, color.text, color.border]
+                ? 'bg-slate-200 text-slate-700 border-slate-400'
                 : 'bg-white text-slate-500 border-slate-200',
             )}
           >{n}</button>
-        ))}
-        {includeInf && (
-          <button
-            onClick={onPickInf}
-            className={cn(
-              'h-10 min-w-[44px] px-2 rounded-lg text-sm font-bold flex-shrink-0 border-2 transition-all active:scale-95',
-              infSelected
-                ? [color.bg, color.text, color.border]
-                : 'bg-white text-slate-500 border-slate-200',
-            )}
-          >∞</button>
-        )}
-      </div>
+        )
+      })}
+      {includeInf && (
+        <button
+          onPointerDown={e => { e.preventDefault(); onPickInf?.() }}
+          className={cn(
+            'h-8 min-w-[28px] px-1 rounded-md text-xs font-bold flex-shrink-0 border-2 transition-all active:brightness-90',
+            infSelected
+              ? 'bg-slate-200 text-slate-700 border-slate-400'
+              : 'bg-white text-slate-500 border-slate-200',
+          )}
+        >∞</button>
+      )}
     </div>
   )
 }
@@ -174,6 +180,9 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
     && primary.min === primary.max && primary.max !== null
   const exactCurrent = (mode === 'exact' && allExact) ? primary!.min : null
 
+  const allGte = allSameMin && allSameMax && primary != null && primary.max === null
+  const gteCurrent = (mode === 'gte' && allGte) ? primary!.min : null
+
   const rangeMinSelected = allSameMin && primary != null ? primary.min : null
   const rangeMaxNumSelected = allSameMax && primary != null && primary.max !== null ? primary.max : null
   const rangeMaxInfSelected = allSameMax && primary != null && primary.max === null
@@ -181,7 +190,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
   return (
     <div className="relative" ref={rootRef}>
       {/* Chip row */}
-      <div className="flex items-center gap-4 flex-wrap pb-0.5">
+      <div className="flex items-center gap-1 flex-wrap pb-0.5">
         {Array.from({ length: segmentCount }, (_, i) => {
           const col = segColor(i)
           const isSelected = selected.has(i)
@@ -189,19 +198,19 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
           return (
             <button
               key={i}
-              onClick={() => toggle(i)}
+              onPointerDown={e => { e.preventDefault(); toggle(i) }}
               className={cn(
                 'transition-all duration-150',
-                isSelected ? 'scale-110' : 'opacity-90',
+                !isSelected && 'opacity-90',
               )}
             >
               <span className={cn(
-                'h-10 w-10 rounded-xl flex flex-col items-center justify-between pt-2 pb-1 ring-2 transition-all',
-                col.bg, col.text, col.ring,
-                isSelected && 'ring-4 shadow-md',
+                'h-10 w-10 rounded-xl flex flex-col items-center justify-between pt-2 pb-1 ring-2 ring-inset transition-all',
+                col.bg, col.text,
+                isSelected ? [col.ringSelected, 'ring-4'] : col.ring,
               )}>
                 <span className="text-sm font-black leading-none">{SEGMENT_LABELS[i]}</span>
-                <span className={cn('text-[8px] font-bold leading-none tabular-nums', col.dimText)}>{fmtRange(s)}</span>
+                <span className="text-[11px] font-bold leading-tight text-slate-500">{fmtRange(s)}</span>
               </span>
             </button>
           )
@@ -211,18 +220,18 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
       {/* Floating popup */}
       {hasSelection && (
         <div className={cn(
-          'absolute left-0 top-full mt-3 z-20 bg-white rounded-2xl shadow-2xl border-2 p-4 space-y-3 w-max',
+          'absolute -left-3 sm:left-0 top-full mt-3 z-20 bg-white rounded-2xl shadow-2xl border-2 p-4 space-y-3 w-max',
           c.border,
         )}>
-          <div className={cn('absolute -top-[9px] left-5 w-4 h-4 rotate-45 rounded-sm border-l-2 border-t-2 bg-white', c.border)} />
+          <div className={cn('absolute -top-[9px] left-8 sm:left-5 w-4 h-4 rotate-45 rounded-sm border-l-2 border-t-2 bg-white', c.border)} />
 
           <div className="flex items-center justify-between gap-3">
             <p className={cn('text-sm font-black', c.text)}>{selectionLabel}</p>
             <button
-              onClick={() => setSelected(new Set(Array.from({ length: segmentCount }, (_, i) => i)))}
-              className={cn('text-[11px] font-semibold px-2 py-1 rounded-md border transition-colors hover:bg-slate-100', c.border, c.text)}
+              onPointerDown={e => { e.preventDefault(); setSelected(new Set(Array.from({ length: segmentCount }, (_, i) => i))) }}
+              className={cn('text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-200 transition-colors hover:bg-slate-100', c.text)}
             >
-              Select all
+              all
             </button>
           </div>
 
@@ -236,40 +245,30 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
                 onClick={() => { applyLen(p.min, p.max); setMode('named') }}
               />
             ))}
-            <PresetChip label="n letters"   active={mode === 'exact'} color={c} onClick={() => setMode('exact')} />
-            <PresetChip label="m–n letters" active={mode === 'range'} color={c} onClick={() => setMode('range')} />
+            <PresetChip label="n"   active={mode === 'exact'} color={c} onClick={() => setMode('exact')} />
+            <PresetChip label="n+"  active={mode === 'gte'}   color={c} onClick={() => setMode('gte')} />
+            <PresetChip label="n-m" active={mode === 'range'} color={c} onClick={() => setMode('range')} />
           </div>
 
           {mode === 'exact' && (
             <>
               <div className={cn('border-t', c.border)} />
-              <PickerRow
-                label="n"
-                numSelected={exactCurrent}
-                onPick={n => applyLen(n, n)}
-                color={c}
-              />
+              <PickerRow numSelected={exactCurrent} onPick={n => applyLen(n, n)} color={c} />
+            </>
+          )}
+
+          {mode === 'gte' && (
+            <>
+              <div className={cn('border-t', c.border)} />
+              <PickerRow numSelected={gteCurrent} onPick={n => applyLen(n, null)} color={c} />
             </>
           )}
 
           {mode === 'range' && (
             <>
               <div className={cn('border-t', c.border)} />
-              <PickerRow
-                label="min"
-                numSelected={rangeMinSelected}
-                onPick={n => applyMin(n)}
-                color={c}
-              />
-              <PickerRow
-                label="max"
-                numSelected={rangeMaxNumSelected}
-                infSelected={rangeMaxInfSelected}
-                includeInf
-                onPick={v => applyMax(v)}
-                onPickInf={() => applyMax(null)}
-                color={c}
-              />
+              <PickerRow compact numSelected={rangeMinSelected} onPick={n => applyMin(n)} color={c} />
+              <PickerRow compact toLabel numSelected={rangeMaxNumSelected} infSelected={rangeMaxInfSelected} includeInf onPick={v => applyMax(v)} onPickInf={() => applyMax(null)} color={c} />
             </>
           )}
         </div>
