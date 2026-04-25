@@ -80,7 +80,7 @@ function App() {
 
   function handleSegmentChange(val: number) {
     setSegmentLengths(prev => {
-      if (val > prev.length) return [...prev, ...Array.from({ length: val - prev.length }, () => ({ min: 1, max: null }))]
+      if (val > prev.length) return [...prev, ...Array.from({ length: val - prev.length }, () => ({ ...prev[prev.length - 1] }))]
       return prev.slice(0, val)
     })
     setSegmentCount(val)
