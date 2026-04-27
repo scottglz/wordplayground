@@ -51,7 +51,7 @@ function useSegmentState() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
 
   const toggle = (i: number) => setSelected(prev => {
-    const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n
+    const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n
   })
 
   // Set both min and max for all selected segments

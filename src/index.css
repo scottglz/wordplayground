@@ -114,6 +114,15 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
+@keyframes seg-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@theme inline {
+  --animate-seg-pop: seg-pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

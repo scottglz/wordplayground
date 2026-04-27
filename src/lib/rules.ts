@@ -22,8 +22,9 @@ export type Rule =
   | { type: 'not_literal';ref: SegmentRef; value: string }
   | { type: 'seg_eq';     ref: SegmentRef; other: SegmentRef }
   | { type: 'seg_neq';    ref: SegmentRef; other: SegmentRef }
-  | { type: 'anagram';     ref: SegmentRef; value: string }     // pre-sorted canonical form
-  | { type: 'anagram_ref'; ref: SegmentRef; other: SegmentRef } // anagram of another segment
+  | { type: 'anagram';        ref: SegmentRef; value: string }     // pre-sorted canonical form
+  | { type: 'anagram_ref';    ref: SegmentRef; other: SegmentRef } // anagram of another segment
+  | { type: 'anagram_is_word'; ref: SegmentRef }                   // any anagram of ref is a valid word
 
 export type ParseError = { type: 'error'; line: string; message: string }
 export type ParsedRule = Rule | ParseError
@@ -138,6 +139,28 @@ export function parseRules(text: string): ParsedRule[] {
       return { type: 'error' as const, line, message: `length() requires a comparison operator (=, !=, >=, <=)` }
     }
 
+    // ── anagram(REF) on LHS ───────────────────────────────────────────
+    const anagramLhsMatch = line.match(/^anagram\(([^)]+)\)\s*(.+)$/i)
+    if (anagramLhsMatch) {
+      const ref = parseRef(anagramLhsMatch[1].trim())
+      if (!ref || !refHasSegment(ref))
+        return { type: 'error' as const, line, message: 'Invalid ref inside anagram()' }
+      const cond = anagramLhsMatch[2].trim()
+
+      if (/^is\s+word$/i.test(cond)) return { type: 'anagram_is_word', ref }
+
+      const eqM = cond.match(/^=\s*(.+)$/)
+      if (eqM) {
+        const val = eqM[1].trim()
+        const rhs = parseRef(val)
+        if (rhs && refHasSegment(rhs)) return { type: 'anagram_ref', ref, other: rhs }
+        const sorted = val.toLowerCase().split('').sort().join('')
+        return { type: 'anagram', ref, value: sorted }
+      }
+
+      return { type: 'error' as const, line, message: 'anagram() requires = <word|SEGMENT> or is word' }
+    }
+
     // ── Normal ref on LHS (supports reverse() wrappers) ────────────────
     const REF_PART = String.raw`(?:reverse\([A-Za-z0-9+]+\)|[A-Za-z0-9]+)`
     const match = line.match(new RegExp(`^(${REF_PART}(?:\\+${REF_PART})*)\\s*(.+)$`, 'i'))
@@ -178,17 +201,6 @@ export function parseRules(text: string): ParsedRule[] {
     }
 
     if (/^is\s+word$/i.test(condition)) return { type: 'is_word', ref }
-
-    const anagramMatch = condition.match(/^anagram\(([^)]+)\)$/i)
-    if (anagramMatch) {
-      const inner = anagramMatch[1].trim()
-      const innerRef = parseRef(inner)
-      if (innerRef && refHasSegment(innerRef)) {
-        return { type: 'anagram_ref', ref, other: innerRef }
-      }
-      const sorted = inner.toLowerCase().split('').sort().join('')
-      return { type: 'anagram', ref, value: sorted }
-    }
 
     return { type: 'error' as const, line, message: `Unknown condition "${condition}"` }
   })

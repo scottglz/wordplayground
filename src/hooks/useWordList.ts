@@ -21,6 +21,7 @@ export function useWordList() {
   })
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(s => ({ ...s, status: 'loading' }))
 
     fetch('/wordlist.txt')

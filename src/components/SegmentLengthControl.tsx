@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { NEUTRAL, segColor } from '@/lib/segColors'
 
 export interface SegLen {
   min: number
   max: number | null  // null = no limit (∞)
 }
 
-type Color = { bg: string; text: string; ring: string; ringSelected: string; border: string; dimText: string }
 type Mode = 'named' | 'exact' | 'gte' | 'range'
 
 type DragState = {
@@ -22,26 +22,6 @@ const PRESETS: { label: string; min: number; max: number | null }[] = [
   { label: '0+',       min: 0, max: null },
   { label: '1+',       min: 1, max: null },
 ]
-
-export const SEG_COLORS: Color[] = [
-  { bg: 'bg-rose-100',    text: 'text-rose-700',    ring: 'ring-rose-200',    ringSelected: 'ring-rose-500',    border: 'border-rose-200',    dimText: 'text-rose-400'    },
-  { bg: 'bg-amber-100',   text: 'text-amber-700',   ring: 'ring-amber-200',   ringSelected: 'ring-amber-500',   border: 'border-amber-200',   dimText: 'text-amber-400'   },
-  { bg: 'bg-sky-100',     text: 'text-sky-700',     ring: 'ring-sky-200',     ringSelected: 'ring-sky-500',     border: 'border-sky-200',     dimText: 'text-sky-400'     },
-  { bg: 'bg-violet-100',  text: 'text-violet-700',  ring: 'ring-violet-200',  ringSelected: 'ring-violet-500',  border: 'border-violet-200',  dimText: 'text-violet-400'  },
-  { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200', ringSelected: 'ring-emerald-500', border: 'border-emerald-200', dimText: 'text-emerald-400' },
-  { bg: 'bg-pink-100',    text: 'text-pink-700',    ring: 'ring-pink-200',    ringSelected: 'ring-pink-500',    border: 'border-pink-200',    dimText: 'text-pink-400'    },
-  { bg: 'bg-orange-100',  text: 'text-orange-700',  ring: 'ring-orange-200',  ringSelected: 'ring-orange-500',  border: 'border-orange-200',  dimText: 'text-orange-400'  },
-  { bg: 'bg-teal-100',    text: 'text-teal-700',    ring: 'ring-teal-200',    ringSelected: 'ring-teal-500',    border: 'border-teal-200',    dimText: 'text-teal-400'    },
-]
-
-const NEUTRAL: Color = {
-  bg: 'bg-slate-50', text: 'text-slate-700', ring: 'ring-slate-300', ringSelected: 'ring-slate-500',
-  border: 'border-slate-300', dimText: 'text-slate-400',
-}
-
-export function segColor(i: number): Color {
-  return SEG_COLORS[i % SEG_COLORS.length]
-}
 
 const SEGMENT_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -124,6 +104,8 @@ interface Props {
 export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, onRemove }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [mode, setMode] = useState<Mode>('named')
+  const [animatingIdx, setAnimatingIdx] = useState<number | null>(null)
+  const prevCountRef = useRef(segmentCount)
   const rootRef = useRef<HTMLDivElement>(null)
   const chipRefs = useRef<(HTMLButtonElement | null)[]>([])
   const removeZoneRef = useRef<HTMLDivElement>(null)
@@ -147,10 +129,18 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected(prev => {
       const next = new Set([...prev].filter(i => i < segmentCount))
       return next.size === prev.size ? prev : next
     })
+    const prev = prevCountRef.current
+    prevCountRef.current = segmentCount
+    if (segmentCount > prev) {
+      setAnimatingIdx(segmentCount - 1)
+      const t = setTimeout(() => setAnimatingIdx(null), 400)
+      return () => clearTimeout(t)
+    }
   }, [segmentCount])
 
   useEffect(() => {
@@ -200,7 +190,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
       })
     }
 
-    function onUp(_e: PointerEvent) {
+    function onUp() {
       const start = dragStartRef.current
       if (!start) return
       const ds = dragStateRef.current
@@ -211,7 +201,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
         // tap: toggle selection
         setSelected(prev => {
           const n = new Set(prev)
-          n.has(start.index) ? n.delete(start.index) : n.add(start.index)
+          if (n.has(start.index)) n.delete(start.index); else n.add(start.index)
           return n
         })
         return
@@ -310,7 +300,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
   return (
     <div className="relative" ref={rootRef}>
       {/* Chip row */}
-      <div className="flex items-center gap-1 flex-wrap pb-0.5">
+      <div className="flex items-center gap-1 flex-wrap pb-0.5" onPointerDown={e => { if (e.target === e.currentTarget) setSelected(new Set()) }}>
         {Array.from({ length: segmentCount }, (_, i) => {
           const col = segColor(i)
           const isSelected = selected.has(i)
@@ -322,12 +312,13 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
               key={i}
               ref={el => { chipRefs.current[i] = el }}
               onPointerDown={e => {
-                e.preventDefault()
+                e.preventDefault();
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
                 dragStartRef.current = { index: i, x: e.clientX, y: e.clientY }
               }}
               className={cn(
                 'transition-all duration-150 flex-shrink-0',
-                isDragging ? 'opacity-20' : isSwapTarget ? 'scale-110' : (!drag && !isSelected) ? 'opacity-90' : '',
+                i === animatingIdx ? 'animate-seg-pop' : isDragging ? 'opacity-20' : isSwapTarget ? 'scale-110' : (!drag && !isSelected) ? 'opacity-90' : '',
               )}
             >
               <span className={cn(
@@ -344,7 +335,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
         })}
         {segmentCount < 26 && !drag && (
           <button
-            onPointerDown={e => { e.preventDefault(); setSelected(new Set([segmentCount])); onAdd() }}
+            onPointerDown={e => { e.preventDefault(); if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); if (selected.size > 0) setSelected(new Set([segmentCount])); onAdd() }}
             className="h-10 w-10 rounded-xl border-2 border-dashed border-slate-200 text-slate-300 flex items-center justify-center flex-shrink-0 hover:border-slate-400 hover:text-slate-400 transition-all"
           >
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -366,7 +357,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
               : 'border-slate-200 bg-slate-50 text-slate-400',
           )}
         >
-          {drag.removing ? '✕ release to remove' : 'drag here to remove'}
+          {drag.removing ? 'Remove' : 'Drag here to remove'}
         </div>
       )}
 

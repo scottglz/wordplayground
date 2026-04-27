@@ -13,12 +13,36 @@ let _N:           number
 let _scoresStart: number
 let _stringsStart: number
 
+let _wordBuf: SharedArrayBuffer | null = null
+let _anagramMap: Map<string, string[]> | null = null
+
 function initBuffer(buf: SharedArrayBuffer) {
+  if (buf !== _wordBuf) { _wordBuf = buf; _anagramMap = null }
   _u32 = new Uint32Array(buf)
   _u8  = new Uint8Array(buf)
   _N           = _u32[0]
   _scoresStart  = 4 + _N * 4
   _stringsStart = _scoresStart + _N
+}
+
+function getAnagramMap(): Map<string, string[]> {
+  if (!_anagramMap) {
+    _anagramMap = new Map()
+    for (let i = 0; i < _N; i++) {
+      const base = _stringsStart + _u32[1 + i]
+      let word = ''
+      for (let j = 0; ; j++) {
+        const b = _u8[base + j]
+        if (b === 0) break
+        word += String.fromCharCode(b)
+      }
+      const key = word.split('').sort().join('')
+      const bucket = _anagramMap.get(key)
+      if (bucket) bucket.push(word)
+      else _anagramMap.set(key, [word])
+    }
+  }
+  return _anagramMap
 }
 
 /** Returns score (0-50) if found, -1 if not. */
@@ -66,8 +90,9 @@ function evaluateRule(rule: Rule, segments: string[]): boolean {
     case 'len_ref_lte': return val.length <= resolveRef(rule.other, segments).length
     case 'seg_eq':      return val === resolveRef(rule.other, segments)
     case 'seg_neq':     return val !== resolveRef(rule.other, segments)
-    case 'anagram':     return val.split('').sort().join('') === rule.value
-    case 'anagram_ref': return val.split('').sort().join('') === resolveRef(rule.other, segments).split('').sort().join('')
+    case 'anagram':         return val.split('').sort().join('') === rule.value
+    case 'anagram_ref':     return val.split('').sort().join('') === resolveRef(rule.other, segments).split('').sort().join('')
+    case 'anagram_is_word': return (getAnagramMap().get(val.split('').sort().join('')) ?? []).some(w => w !== val)
   }
 }
 
@@ -79,6 +104,10 @@ function collectIsWordMatches(rules: Rule[], segments: string[]): { matches: str
       const val = resolveRef(rule.ref, segments)
       const score = lookupWord(val)
       if (score >= 0) { matches.push(val); bonus += score }
+    } else if (rule.type === 'anagram_is_word') {
+      const val = resolveRef(rule.ref, segments)
+      const words = getAnagramMap().get(val.split('').sort().join('')) ?? []
+      for (const w of words) { if (w !== val) { const s = lookupWord(w); matches.push(w); bonus += s > 0 ? s : 0 } }
     }
   }
   return { matches, bonus }

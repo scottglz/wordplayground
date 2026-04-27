@@ -9,7 +9,9 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { SegmentLengthControl, type SegLen, segColor } from '@/components/SegmentLengthControl'
+import { SegmentLengthControl, type SegLen } from '@/components/SegmentLengthControl'
+import { segColor } from '@/lib/segColors'
+import { CornerDownLeft } from 'lucide-react'
 
 const SEGMENT_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -112,6 +114,9 @@ function App() {
             <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Segments
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              We're going to view each word in our wordlist as a series of contiguous segments. Each segment shows its allowed length (in letters). Click segments to edit, drag to remove
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             <SegmentLengthControl
@@ -130,6 +135,9 @@ function App() {
             <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Rules
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Rules target the segments. When you press "Run", any words that can match all the rules will be listed.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
@@ -153,7 +161,7 @@ function App() {
                 { label: 'reverse(', text: 'reverse(' },
                 { label: 'length(',  text: 'length('  },
                 { label: 'anagram(', text: 'anagram(' },
-                { label: '↵',        text: '\n' },
+                { label: ')',        text: ')'  },
               ] as { label: string; text: string; spaceBefore?: boolean }[]).map(({ label, text, spaceBefore }) => (
                 <button
                   key={label}
@@ -161,6 +169,11 @@ function App() {
                   className="text-xs font-medium px-2.5 py-1 rounded-md border bg-white text-slate-600 border-slate-200 cursor-pointer transition-all active:scale-95 hover:bg-slate-50 font-mono"
                 >{label}</button>
               ))}
+              <button
+                onPointerDown={e => { e.preventDefault(); insertAtCursor('\n') }}
+                className="flex items-center justify-center w-8 py-1 rounded-md border bg-white text-slate-500 border-slate-200 cursor-pointer transition-all active:scale-95 hover:bg-slate-50"
+                title="New line"
+              ><CornerDownLeft size={14} strokeWidth={2} /></button>
             </div>
             <Textarea
               ref={textareaRef}
