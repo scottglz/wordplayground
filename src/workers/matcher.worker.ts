@@ -67,6 +67,7 @@ function evaluateRule(rule: Rule, segments: string[]): boolean {
     case 'seg_eq':      return val === resolveRef(rule.other, segments)
     case 'seg_neq':     return val !== resolveRef(rule.other, segments)
     case 'anagram':     return val.split('').sort().join('') === rule.value
+    case 'anagram_ref': return val.split('').sort().join('') === resolveRef(rule.other, segments).split('').sort().join('')
   }
 }
 

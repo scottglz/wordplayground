@@ -22,7 +22,8 @@ export type Rule =
   | { type: 'not_literal';ref: SegmentRef; value: string }
   | { type: 'seg_eq';     ref: SegmentRef; other: SegmentRef }
   | { type: 'seg_neq';    ref: SegmentRef; other: SegmentRef }
-  | { type: 'anagram';    ref: SegmentRef; value: string } // pre-sorted canonical form
+  | { type: 'anagram';     ref: SegmentRef; value: string }     // pre-sorted canonical form
+  | { type: 'anagram_ref'; ref: SegmentRef; other: SegmentRef } // anagram of another segment
 
 export type ParseError = { type: 'error'; line: string; message: string }
 export type ParsedRule = Rule | ParseError
@@ -180,7 +181,12 @@ export function parseRules(text: string): ParsedRule[] {
 
     const anagramMatch = condition.match(/^anagram\(([^)]+)\)$/i)
     if (anagramMatch) {
-      const sorted = anagramMatch[1].toLowerCase().split('').sort().join('')
+      const inner = anagramMatch[1].trim()
+      const innerRef = parseRef(inner)
+      if (innerRef && refHasSegment(innerRef)) {
+        return { type: 'anagram_ref', ref, other: innerRef }
+      }
+      const sorted = inner.toLowerCase().split('').sort().join('')
       return { type: 'anagram', ref, value: sorted }
     }
 

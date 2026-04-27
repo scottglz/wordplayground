@@ -51,7 +51,7 @@ function App() {
     [validRules, segmentCount],
   )
   const hasErrors = parseErrors.length > 0 || refErrors.length > 0
-  const canRun = wordStatus === 'ready' && validRules.length > 0 && !hasErrors && wordBuffer !== null
+  const canRun = wordStatus === 'ready' && !hasErrors && wordBuffer !== null
 
   function handleRun() {
     if (!wordBuffer) return

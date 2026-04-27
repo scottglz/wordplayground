@@ -217,7 +217,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
         return
       }
 
-      if (ds.removing) {
+      if (ds.removing && segmentCountRef.current > 1) {
         const newLengths = [
           ...lengthsRef.current.slice(0, ds.index),
           ...lengthsRef.current.slice(ds.index + 1),
@@ -344,7 +344,7 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
         })}
         {segmentCount < 26 && !drag && (
           <button
-            onPointerDown={e => { e.preventDefault(); onAdd() }}
+            onPointerDown={e => { e.preventDefault(); setSelected(new Set([segmentCount])); onAdd() }}
             className="h-10 w-10 rounded-xl border-2 border-dashed border-slate-200 text-slate-300 flex items-center justify-center flex-shrink-0 hover:border-slate-400 hover:text-slate-400 transition-all"
           >
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -355,8 +355,8 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
         )}
       </div>
 
-      {/* Remove drop zone — shown only while dragging */}
-      {drag !== null && (
+      {/* Remove drop zone — shown only while dragging with more than one segment */}
+      {drag !== null && segmentCount > 1 && (
         <div
           ref={removeZoneRef}
           className={cn(
