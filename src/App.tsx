@@ -114,31 +114,13 @@ function App() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => handleSegmentChange(Math.max(1, segmentCount - 1))}
-              >−</Button>
-              <span className="w-8 text-center font-bold text-lg tabular-nums">{segmentCount}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => handleSegmentChange(Math.min(26, segmentCount + 1))}
-              >+</Button>
-            </div>
-            <div>
-              <SegmentLengthControl
-                segmentCount={segmentCount}
-                lengths={segmentLengths}
-                onChange={setSegmentLengths}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground font-mono">
-              word = {SEGMENT_LABELS.slice(0, segmentCount).split('').join(' + ')}
-            </p>
+            <SegmentLengthControl
+              segmentCount={segmentCount}
+              lengths={segmentLengths}
+              onChange={setSegmentLengths}
+              onAdd={() => handleSegmentChange(Math.min(26, segmentCount + 1))}
+              onRemove={() => handleSegmentChange(Math.max(1, segmentCount - 1))}
+            />
           </CardContent>
         </Card>
 

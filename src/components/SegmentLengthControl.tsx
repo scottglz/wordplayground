@@ -9,6 +9,14 @@ export interface SegLen {
 type Color = { bg: string; text: string; ring: string; ringSelected: string; border: string; dimText: string }
 type Mode = 'named' | 'exact' | 'gte' | 'range'
 
+type DragState = {
+  index: number
+  x: number
+  y: number
+  overIndex: number | null
+  removing: boolean
+}
+
 const PRESETS: { label: string; min: number; max: number | null }[] = [
   { label: '1 letter', min: 1, max: 1    },
   { label: '0+',       min: 0, max: null },
@@ -109,12 +117,34 @@ interface Props {
   segmentCount: number
   lengths: SegLen[]
   onChange: (lengths: SegLen[]) => void
+  onAdd: () => void
+  onRemove: () => void
 }
 
-export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props) {
+export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, onRemove }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [mode, setMode] = useState<Mode>('named')
   const rootRef = useRef<HTMLDivElement>(null)
+  const chipRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const removeZoneRef = useRef<HTMLDivElement>(null)
+  const [drag, setDrag] = useState<DragState | null>(null)
+  const dragStartRef = useRef<{ index: number; x: number; y: number } | null>(null)
+  const dragStateRef = useRef<DragState | null>(null)
+
+  // Stable refs for use in event handlers
+  const lengthsRef = useRef(lengths)
+  const segmentCountRef = useRef(segmentCount)
+  const onChangeRef = useRef(onChange)
+  const onRemoveRef = useRef(onRemove)
+  useEffect(() => { lengthsRef.current = lengths }, [lengths])
+  useEffect(() => { segmentCountRef.current = segmentCount }, [segmentCount])
+  useEffect(() => { onChangeRef.current = onChange }, [onChange])
+  useEffect(() => { onRemoveRef.current = onRemove }, [onRemove])
+
+  function updateDrag(state: DragState | null) {
+    dragStateRef.current = state
+    setDrag(state)
+  }
 
   useEffect(() => {
     setSelected(prev => {
@@ -133,13 +163,83 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [])
 
-  function toggle(i: number) {
-    setSelected(prev => {
-      const n = new Set(prev)
-      n.has(i) ? n.delete(i) : n.add(i)
-      return n
-    })
-  }
+  // Drag handlers — stable (reads all changing values via refs)
+  useEffect(() => {
+    const DRAG_THRESHOLD = 8
+
+    function chipOver(x: number, y: number): number | null {
+      for (let i = 0; i < segmentCountRef.current; i++) {
+        const r = chipRefs.current[i]?.getBoundingClientRect()
+        if (r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i
+      }
+      return null
+    }
+
+    function overRemoveZone(x: number, y: number): boolean {
+      const r = removeZoneRef.current?.getBoundingClientRect()
+      return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+    }
+
+    function onMove(e: PointerEvent) {
+      const start = dragStartRef.current
+      if (!start) return
+      const dx = e.clientX - start.x
+      const dy = e.clientY - start.y
+      if (!dragStateRef.current && Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return
+
+      // First move past threshold: close the edit popup
+      if (!dragStateRef.current) setSelected(new Set())
+
+      const over = chipOver(e.clientX, e.clientY)
+      updateDrag({
+        index: start.index,
+        x: e.clientX,
+        y: e.clientY,
+        overIndex: over !== null && over !== start.index ? over : null,
+        removing: overRemoveZone(e.clientX, e.clientY),
+      })
+    }
+
+    function onUp(_e: PointerEvent) {
+      const start = dragStartRef.current
+      if (!start) return
+      const ds = dragStateRef.current
+      dragStartRef.current = null
+      updateDrag(null)
+
+      if (!ds) {
+        // tap: toggle selection
+        setSelected(prev => {
+          const n = new Set(prev)
+          n.has(start.index) ? n.delete(start.index) : n.add(start.index)
+          return n
+        })
+        return
+      }
+
+      if (ds.removing) {
+        const newLengths = [
+          ...lengthsRef.current.slice(0, ds.index),
+          ...lengthsRef.current.slice(ds.index + 1),
+        ]
+        onChangeRef.current(newLengths)
+        onRemoveRef.current()
+      } else if (ds.overIndex !== null) {
+        const { index, overIndex } = ds
+        onChangeRef.current(lengthsRef.current.map((s, i) =>
+          i === index ? lengthsRef.current[overIndex] :
+          i === overIndex ? lengthsRef.current[index] : s
+        ))
+      }
+    }
+
+    document.addEventListener('pointermove', onMove)
+    document.addEventListener('pointerup', onUp)
+    return () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+    }
+  }, [])
 
   function applyLen(min: number, max: number | null) {
     onChange(lengths.map((s, i) => selected.has(i) ? { min, max } : s))
@@ -186,6 +286,27 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
   const rangeMaxNumSelected = allSameMax && primary != null && primary.max !== null ? primary.max : null
   const rangeMaxInfSelected = allSameMax && primary != null && primary.max === null
 
+  // Drag preview chip
+  const dragPreview = drag !== null ? (() => {
+    const col = segColor(drag.index)
+    const s = lengths[drag.index] ?? { min: 1, max: null }
+    return (
+      <div
+        style={{ position: 'fixed', left: drag.x - 20, top: drag.y - 20, pointerEvents: 'none', zIndex: 50 }}
+        className="drop-shadow-xl"
+      >
+        <span className={cn(
+          'h-10 w-10 rounded-xl flex flex-col items-center justify-between pt-2 pb-1 ring-2 ring-inset transition-colors',
+          col.bg, col.text,
+          drag.removing ? 'ring-rose-400 opacity-70' : col.ring,
+        )}>
+          <span className="text-sm font-black leading-none">{SEGMENT_LABELS[drag.index]}</span>
+          <span className="text-[11px] font-bold leading-tight text-slate-500">{fmtRange(s)}</span>
+        </span>
+      </div>
+    )
+  })() : null
+
   return (
     <div className="relative" ref={rootRef}>
       {/* Chip row */}
@@ -193,20 +314,27 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
         {Array.from({ length: segmentCount }, (_, i) => {
           const col = segColor(i)
           const isSelected = selected.has(i)
+          const isDragging = drag?.index === i
+          const isSwapTarget = drag?.overIndex === i
           const s = lengths[i] ?? { min: 1, max: null }
           return (
             <button
               key={i}
-              onPointerDown={e => { e.preventDefault(); toggle(i) }}
+              ref={el => { chipRefs.current[i] = el }}
+              onPointerDown={e => {
+                e.preventDefault()
+                dragStartRef.current = { index: i, x: e.clientX, y: e.clientY }
+              }}
               className={cn(
-                'transition-all duration-150',
-                !isSelected && 'opacity-90',
+                'transition-all duration-150 flex-shrink-0',
+                isDragging ? 'opacity-20' : isSwapTarget ? 'scale-110' : (!drag && !isSelected) ? 'opacity-90' : '',
               )}
             >
               <span className={cn(
                 'h-10 w-10 rounded-xl flex flex-col items-center justify-between pt-2 pb-1 ring-2 ring-inset transition-all',
                 col.bg, col.text,
-                isSelected ? [col.ringSelected, 'ring-4'] : col.ring,
+                isSwapTarget ? [col.ringSelected, 'ring-4'] :
+                (isSelected && !drag) ? [col.ringSelected, 'ring-4'] : col.ring,
               )}>
                 <span className="text-sm font-black leading-none">{SEGMENT_LABELS[i]}</span>
                 <span className="text-[11px] font-bold leading-tight text-slate-500">{fmtRange(s)}</span>
@@ -214,10 +342,39 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange }: Props)
             </button>
           )
         })}
+        {segmentCount < 26 && !drag && (
+          <button
+            onPointerDown={e => { e.preventDefault(); onAdd() }}
+            className="h-10 w-10 rounded-xl border-2 border-dashed border-slate-200 text-slate-300 flex items-center justify-center flex-shrink-0 hover:border-slate-400 hover:text-slate-400 transition-all"
+          >
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="5.5" y1="1" x2="5.5" y2="10" />
+              <line x1="1" y1="5.5" x2="10" y2="5.5" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      {/* Floating popup */}
-      {hasSelection && (
+      {/* Remove drop zone — shown only while dragging */}
+      {drag !== null && (
+        <div
+          ref={removeZoneRef}
+          className={cn(
+            'mt-2 rounded-xl border-2 border-dashed flex items-center justify-center h-10 text-xs font-semibold transition-all select-none',
+            drag.removing
+              ? 'border-rose-400 bg-rose-50 text-rose-500'
+              : 'border-slate-200 bg-slate-50 text-slate-400',
+          )}
+        >
+          {drag.removing ? '✕ release to remove' : 'drag here to remove'}
+        </div>
+      )}
+
+      {/* Floating drag preview */}
+      {dragPreview}
+
+      {/* Edit popup — hidden during drag */}
+      {hasSelection && !drag && (
         <div className={cn(
           'absolute -left-3 sm:left-0 top-full mt-3 z-20 bg-white rounded-2xl shadow-2xl border-2 p-4 space-y-3 w-max',
           c.border,
