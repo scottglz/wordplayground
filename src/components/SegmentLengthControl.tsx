@@ -223,11 +223,18 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
       }
     }
 
+    function onCancel() {
+      dragStartRef.current = null
+      updateDrag(null)
+    }
+
     document.addEventListener('pointermove', onMove)
     document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onCancel)
     return () => {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onCancel)
     }
   }, [])
 
@@ -313,10 +320,12 @@ export function SegmentLengthControl({ segmentCount, lengths, onChange, onAdd, o
               ref={el => { chipRefs.current[i] = el }}
               onPointerDown={e => {
                 e.preventDefault();
+                e.currentTarget.setPointerCapture(e.pointerId)
                 if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
                 dragStartRef.current = { index: i, x: e.clientX, y: e.clientY }
               }}
               className={cn(
+                'touch-none',
                 'transition-all duration-150 flex-shrink-0',
                 i === animatingIdx ? 'animate-seg-pop' : isDragging ? 'opacity-20' : isSwapTarget ? 'scale-110' : (!drag && !isSelected) ? 'opacity-90' : '',
               )}
